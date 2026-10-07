@@ -1,0 +1,41 @@
+# ==========================================
+# IIC-OSIC-TOOLS & ASIC DESIGN .gitignore
+# ==========================================
+
+# 1. OpenLANE / OpenROAD (Digitální syntéza a Place & Route)
+# Složka runs/ obsahuje kompletní historii každého běhu syntézy (může mít desítky GB)
+runs/
+*.log
+*.rpt
+*.gz
+*.sdc
+
+# 2. Ngspice (Analogové simulace)
+# .raw soubory obsahují nasimulované průběhy signálů (ekvivalent .vcd)
+*.raw
+*.out
+
+# 3. Xschem / Magic / KLayout (Zálohy a dočasné soubory)
+# Nástroje neustále vytvářejí tyto automatické zálohy při každém uložení
+*~
+*.back
+*.backup
+*.ext
+*.mag_bak
+
+# 4. DRC a LVS reporty (Kontroly pravidel a zapojení)
+*.drc.report
+*.lvs.report
+*.lyrdb
+*.lyrdb.xml
+
+# 5. Python skripty a kompilované soubory (pokud používáš např. pro generování testů)
+__pycache__/
+*.pyc
+
+# 6. Volitelné: Fyzické masky (GDSII / OASIS)
+# Finální masky jsou obrovské. Obvykle se do Gitu nedávají, protože se dají kdykoliv 
+# vygenerovat znovu z layoutu a netlistu. Pokud je verzovat chceš, smaž tyto řádky.
+*.gds
+*.gds.gz
+*.oas

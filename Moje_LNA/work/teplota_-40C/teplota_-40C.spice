@@ -1,0 +1,40 @@
+** sch_path: /foss/designs/ihp_designs/NMOS_lv_sim.sch
+**.subckt NMOS_lv_sim
+XM1 VD VG VS VB sg13_lv_nmos w={W_n} l={L_n} ng={NG_n} m={M_n} mm_ok=1
+V1 VG 0 {Vg}
+V2 VD 0 {Vd}
+V3 VS 0 {Vs}
+V4 VB 0 {Vb}
+**** begin user architecture code
+
+
+
+.lib cornerMOSlv.lib mos_tt
+*.lib cornerMOShv.lib {CORNER_MOS_hv}
+*.lib cornerHBT.lib {CORNER_HBT}
+*.lib cornerRES.lib {CORNER_RES}
+*.lib cornerCAP.lib {CORNER_CAP}
+
+
+
+
+.param Vg=0.6
+.param Vd=1.2
+.param Vs=0
+.param Vb=0
+.param W_n=0.15u
+.param L_n=0.13u
+.param M_n=1
+.param NG_n=1
+.param TEMP=25
+
+
+**** end user architecture code
+**.ends
+.end
+
+
+.control
+  tran 10p 100n
+  write teplota_-40C.raw all
+.endc

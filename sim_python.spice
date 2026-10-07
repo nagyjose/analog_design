@@ -1,0 +1,17 @@
+
+.title Python Řízená Simulace
+* Vložíme zlatý netlist nakreslený v Xschemu
+.include simulations/NMOS_lv_sim.spice
+
+.control
+  * 1. Ignorujeme výchozí .param Vg=0.6 a rovnou proladíme zdroj V1
+  dc V1 0 1.2 0.01
+
+  * 2. Výpočet proudu a transkonduktance
+  let Idrain = -i(v2)
+  let gm = deriv(Idrain)
+
+  * 3. Uložení dat do čistého textového souboru pomocí wrdata
+  * Výstup bude mít sloupce: Osa_X(V1), Idrain, Osa_X(V1), gm
+  wrdata NMOS_lv_res.txt Idrain gm
+.endc
