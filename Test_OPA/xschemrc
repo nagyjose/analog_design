@@ -1,0 +1,3 @@
+# Lokální konfigurace Xschem pro projekt Test_OPA
+# Vynucení ukládání netlistů do složky netlists/
+set netlist_dir $env(PWD)/netlists

@@ -32,6 +32,7 @@ runs/
 # 5. Python skripty a kompilované soubory (pokud používáš např. pro generování testů)
 __pycache__/
 *.pyc
+notes.md
 
 # 6. Volitelné: Fyzické masky (GDSII / OASIS)
 # Finální masky jsou obrovské. Obvykle se do Gitu nedávají, protože se dají kdykoliv 
