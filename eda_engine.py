@@ -3,14 +3,26 @@ import copy
 import uuid
 import subprocess
 import concurrent.futures
+import random
 from dataclasses import dataclass
 from typing import Tuple, Optional, List, Dict, Any, Union
 from pathlib import Path
 
 class BaseAnalysis:
     """Základní třída pro všechny typy Ngspice simulací."""
+    
+    def get_core_command(self) -> str:
+        """Vrátí čistý simulační příkaz bez .control obálky (např. 'dc vds 0 1.8 0.1')."""
+        raise NotImplementedError()
+
     def get_control_block(self, raw_filename: str) -> str:
-        raise NotImplementedError("Metoda get_control_block musí být implementována v potomkovi.")
+        """Standardní obálka pro izolovaný běh (Single Run)."""
+        return f"""
+                .control
+                {self.get_core_command()}
+                write {raw_filename} all
+                .endc
+                """
 
 @dataclass
 class DCAnalysis(BaseAnalysis):
@@ -21,20 +33,11 @@ class DCAnalysis(BaseAnalysis):
     sweep1: Tuple[str, float, float, float]  # (zdroj, start, stop, krok)
     sweep2: Optional[Tuple[str, float, float, float]] = None # Volitelný sekundární sweep
 
-    def get_control_block(self, raw_filename: str) -> str:
-        # Sestavení příkazu pro první parametr
+    def get_core_command(self) -> str:
         cmd = f"dc {self.sweep1[0]} {self.sweep1[1]} {self.sweep1[2]} {self.sweep1[3]}"
-        
-        # Přidání druhého parametru, pokud je definován
         if self.sweep2:
             cmd += f" {self.sweep2[0]} {self.sweep2[1]} {self.sweep2[2]} {self.sweep2[3]}"
-            
-        return f"""
-                .control
-                {cmd}
-                write {raw_filename} all
-                .endc
-                """
+        return cmd
 
 @dataclass
 class ACAnalysis(BaseAnalysis):
@@ -47,13 +50,8 @@ class ACAnalysis(BaseAnalysis):
     f_start: float
     f_stop: float
 
-    def get_control_block(self, raw_filename: str) -> str:
-        return f"""
-                .control
-                ac {self.sweep_type} {self.points} {self.f_start} {self.f_stop}
-                write {raw_filename} all
-                .endc
-                """
+    def get_core_command(self) -> str:
+        return f"ac {self.sweep_type} {self.points} {self.f_start} {self.f_stop}"
 
 @dataclass
 class TranAnalysis(BaseAnalysis):
@@ -64,13 +62,8 @@ class TranAnalysis(BaseAnalysis):
     t_stop: float
     t_start: float = 0.0
 
-    def get_control_block(self, raw_filename: str) -> str:
-        return f"""
-                .control
-                tran {self.t_step} {self.t_stop} {self.t_start}
-                write {raw_filename} all
-                .endc
-                """
+    def get_core_command(self) -> str:
+        return f"tran {self.t_step} {self.t_stop} {self.t_start}"
 
 @dataclass
 class CustomAnalysis(BaseAnalysis):
@@ -80,9 +73,43 @@ class CustomAnalysis(BaseAnalysis):
     """
     control_script: str
 
+    def get_core_command(self) -> str:
+        return self.core_commands
+
+@dataclass
+class MCAnalysis(BaseAnalysis):
+    """
+    Wrapper pro Monte Carlo analýzu (Strategie Hybrid Chunking).
+    Obalí jakoukoliv základní analýzu do smyčky a vygeneruje vícenásobné běhy.
+    """
+    base_analysis: BaseAnalysis
+    runs_per_chunk: int  # Počet vnitřních iterací v jednom Ngspice procesu
+
+    def get_core_command(self) -> str:
+        raise NotImplementedError("MCAnalysis se spouští jako nadřazený control block.")
+
     def get_control_block(self, raw_filename: str) -> str:
-        # Očekává se, že uživatel ve svém skriptu použije zástupný text {RAW_OUT}
-        return self.control_script.format(RAW_OUT=raw_filename)
+        core_cmd = self.base_analysis.get_core_command()
+        
+        return f"""
+                .control
+                let mc_runs = {self.runs_per_chunk}
+                let run = 1
+                
+                * {{{{SEED}}}} bude automaticky nahrazeno enginem pro každý proces unikátně
+                set seed = {{{{SEED}}}}
+                
+                while run <= mc_runs
+                    reset
+                    * Vlastní analýza
+                    {core_cmd}
+                    let run = run + 1
+                end
+                
+                * Zápis všech vygenerovaných křivek (např. dc1, dc2... dc100) do jediného RAW
+                write {raw_filename} all
+                .endc
+                """
 
 
 class ParameterExpander:
@@ -171,8 +198,14 @@ class NgspiceRunner:
             for key, value in params.items():
                 netlist = netlist.replace(key, str(value))
                 
-            # Vložení konkrétního control bloku s nasměrováním na lokální RAW soubor
-            control_formatted = control_block.format(RAW_OUT=raw_output.name)
+            # 1. Vygenerování unikátního semínka (Ochrana proti duplicitě při multithreadingu)
+            # Zkombinujeme velký náhodný základ s indexem úlohy pro naprostou jistotu
+            unique_seed = random.randint(1, 9999999) + task_idx
+            
+            # 2. Bezpečné nahrazení tagů. Nahrazujeme .format() za .replace(), 
+            # protože Ngspice skripty často obsahují složené závorky {} pro jiné účely.
+            control_formatted = control_block.replace("{RAW_OUT}", raw_output.name)
+            control_formatted = control_formatted.replace("{{SEED}}", str(unique_seed))
             
             with open(run_spice, "w", encoding="utf-8") as f:
                 f.write(netlist)

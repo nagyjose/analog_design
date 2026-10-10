@@ -76,6 +76,25 @@ class PVTBuilder:
                 combined.append(s)
         return combined
 
+    def get_monte_carlo(self, mismatch_en=True, process_en=True, **kwargs):
+        """
+        Připraví scénář pro statistickou MC analýzu.
+        Napětí a teplota zůstávají deterministické (lze je přepsat přes kwargs).
+        Knihovny PDK se přepnou na statistické modely (pro SG13G2 je to 'stat').
+        """
+        base = {
+            "{C_MOS_LV}": "stat",
+            "{C_MOS_HV}": "stat",
+            "{C_HBT}": "stat",
+            "{C_RES}": "stat",
+            "{C_CAP}": "stat",
+            # Speciální vlajky (flags), které vložíme do netlistu k zapnutí/vypnutí
+            # Pelgromova mismatch modelu nebo globálních procesních variací
+            "{MC_PROCESS}": 1 if process_en else 0,
+            "{MC_MISMATCH}": 1 if mismatch_en else 0
+        }
+        return self._apply(base, kwargs)
+
 
     # ==========================================
     # 2. IZOLOVANÉ 1D STAVEBNÍ BLOKY
@@ -145,6 +164,7 @@ class PVTBuilder:
         """Maximalizace tepelného a 1/f šumu. Pomalé aktivní prvky a velké odpory."""
         base = {"{C_MOS_LV}": "ss", "{C_HBT}": "min", "{C_RES}": "max", "{TEMP}": 125}
         return self._apply(base, kwargs)
+
 
     # ==========================================
     # 4. KOMPLEXNÍ SIGN-OFF MATICE
