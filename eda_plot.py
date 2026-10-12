@@ -19,25 +19,36 @@ class EDAPlotter:
         # Sledování již přidaných legend pro celý dashboard, abychom zamezili duplicitám napříč subploty
         self.added_legends = set()
 
-    def create_dashboard(self, rows: int = 1, cols: int = 1, specs=None, titles=None, title_text="EDA Report") -> go.Figure:
+    def create_dashboard(self, rozlozeni: list, title_text="EDA Report") -> go.Figure:
         """
-        Inicializuje prázdné plátno (mřížku) podle zadané specifikace.
-        Příklad specs pro 2x2 (grafy nahoře, tabulky dole): 
-        [[{"type": "xy"}, {"type": "xy"}], [{"type": "table"}, {"type": "table"}]]
-        Pokud chcete u grafu použít Monte Carlo analýzu (která vyžaduje dvě osy Y), zadejte do buňky {"secondary_y": True}.
+        Vytvoří plátno na základě jednoduché textové matice.
+        Příklad: 
+        [
+            [("graf", "AC Odezva"), ("mc", "Monte Carlo")],
+            [("tabulka", "Hrany"),  ("tabulka", "Statistika")]
+        ]
         """
-        fig = make_subplots(
-            rows=rows, cols=cols, 
-            specs=specs, subplot_titles=titles,
-            vertical_spacing=0.08, horizontal_spacing=0.05
-        )
-        fig.update_layout(
-            title=title_text,
-            template=self.theme,
-            hovermode="x unified",
-            height=350 * rows + 100, # Automatická výška (350px na řádek plus rezerva)
-            legend=dict(title="Parametry", groupclick="toggleitem", orientation="h", y=-0.1) # Legenda globálně dole
-        )
+        rows = len(rozlozeni)
+        cols = len(rozlozeni[0]) if rows > 0 else 0
+        
+        # Překladač našeho lidského formátu do jazyka Plotly
+        typova_mapa = {
+            "graf": {"type": "xy"},
+            "mc": {"secondary_y": True},
+            "tabulka": {"type": "table"}
+        }
+        
+        specs = []
+        titles = []
+        for radek in rozlozeni:
+            spec_radek = []
+            for typ, nadpis in radek:
+                spec_radek.append(typova_mapa.get(typ.lower(), {"type": "xy"}))
+                titles.append(nadpis)
+            specs.append(spec_radek)
+            
+        fig = make_subplots(rows=rows, cols=cols, specs=specs, subplot_titles=titles, vertical_spacing=0.08)
+        fig.update_layout(title=title_text, template=self.theme, hovermode="x unified", height=350 * rows + 100)
         return fig
 
     def _clean_key(self, key: str) -> str:
@@ -267,3 +278,26 @@ class EDAPlotter:
             ),
             row=row, col=col
         )
+
+    def add_mc_summary_table(self, fig: go.Figure, stats_dict: dict, row: int, col: int):
+        """
+        Automaticky převede statistický slovník z MC analýzy na čitelnou tabulku.
+        Zcela skrývá Pandas před uživatelem.
+        """
+        if not stats_dict:
+            return
+            
+        yield_emp = stats_dict.get("empirical", {}).get("yield_pct", 100.0)
+        yield_norm = stats_dict.get("fitted_models", {}).get("norm", {}).get("yield_pct", float('nan'))
+        
+        # Interní sestavení tabulky
+        summary_data = [
+            {"Metrika": "Počet vzorků", "Hodnota": str(stats_dict.get("runs", 0))},
+            {"Metrika": "Průměr (μ)", "Hodnota": f"{stats_dict.get('mu_standard', 0):.4g}"},
+            {"Metrika": "Odchylka (σ)", "Hodnota": f"{stats_dict.get('sigma_standard', 0):.4g}"},
+            {"Metrika": "Yield (Empirický)", "Hodnota": f"{yield_emp:.2f} %"},
+            {"Metrika": "Yield (Teoretický Gauss)", "Hodnota": f"{yield_norm:.2f} %"}
+        ]
+        
+        # Zavoláme naši již existující vykreslovací metodu
+        self.add_analysis_table(fig, summary_data, row=row, col=col)
