@@ -1,4 +1,4 @@
-from eda_engine import WorkspaceManager, NgspiceRunner, Testbench, DCAnalysis
+from eda_framework.eda_engine import WorkspaceManager, NgspiceRunner, Testbench, DCAnalysis
 
 # --- INICIALIZACE PROSTŘEDÍ ---
 ws = WorkspaceManager(project_root="./muj_lna_projekt")

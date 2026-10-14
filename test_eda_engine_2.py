@@ -1,4 +1,4 @@
-from eda_engine import WorkspaceManager, NgspiceRunner
+from eda_framework.eda_engine import WorkspaceManager, NgspiceRunner
 
 # Inicializace
 ws = WorkspaceManager(project_root="./Moje_LNA")

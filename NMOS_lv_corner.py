@@ -1,7 +1,7 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sim_engine import NgspiceRunner
-from eda_tools import pridej_bodovy_marker
+from eda_fra_old.eda_tools import pridej_bodovy_marker
 
 # 1. Inicializace enginu
 engine = NgspiceRunner("simulations/NMOS_lv_sim.spice")

@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
-from eda_tools import pridej_bodovy_marker, pridej_delta_marker, pridej_statistiku_intervalu, pridej_analyzu_skoku
+from eda_fra_old.eda_tools import pridej_bodovy_marker, pridej_delta_marker, pridej_statistiku_intervalu, pridej_analyzu_skoku
 
 # 1. NASTAVENÍ SOUBORŮ
 # Zde zadejte přesný název netlistu, který vám vygeneroval Xschem

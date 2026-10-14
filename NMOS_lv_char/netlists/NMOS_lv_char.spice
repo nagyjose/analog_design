@@ -1,0 +1,35 @@
+** sch_path: /foss/designs/ihp_designs/NMOS_lv_char/schematics/NMOS_lv_char.sch
+**.subckt NMOS_lv_char
+*  M1 -  sg13_lv_nmos  IS MISSING !!!!
+V1 VG 0 {Vg}
+V2 VD 0 {Vd}
+V3 VS 0 {Vs}
+V4 VB 0 {Vb}
+**** begin user architecture code
+
+
+
+.lib cornerMOSlv.lib {CORNER_MOS_lv}
+*.lib cornerMOShv.lib {CORNER_MOS_hv}
+*.lib cornerHBT.lib {CORNER_HBT}
+*.lib cornerRES.lib {CORNER_RES}
+*.lib cornerCAP.lib {CORNER_CAP}
+
+
+
+
+.param Vg=0.6
+.param Vd=1.2
+.param Vs=0
+.param Vb=0
+.param W_n=0.15u
+.param L_n=0.13u
+.param M_n=1
+.param NG_n=1
+.param TEMP=25
+.temp {TEMP}
+
+
+**** end user architecture code
+**.ends
+.end

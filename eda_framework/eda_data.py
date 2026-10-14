@@ -199,94 +199,94 @@ class SimulationDataSet:
                 batch.append(run['data'][signal_name].to_numpy())
         return batch
 
-    def analyze_monte_carlo_distribution(df: pd.DataFrame, column_name: str, 
-                                        lsl: float = None, usl: float = None,
-                                        fit_dists: list = ["norm"], 
-                                        use_kde: bool = True) -> dict:
-        """
-        Statistická analýza dat s integrací limitů pro výpočet výtěžnosti (Yield).
-        Vrací jak empirickou výtěžnost (z hrubých dat), tak teoretickou pro každé zvolené rozdělení.
-        """
-        # 1. Extrakce a očištění dat
-        data = df[column_name].dropna().values
-        celkem_behu = len(data)
-        
-        if celkem_behu == 0:
-            raise ValueError(f"Sloupec '{column_name}' je prázdný.")
+def analyze_monte_carlo_distribution(df: pd.DataFrame, column_name: str, 
+                                    lsl: float = None, usl: float = None,
+                                    fit_dists: list = ["norm"], 
+                                    use_kde: bool = True) -> dict:
+    """
+    Statistická analýza dat s integrací limitů pro výpočet výtěžnosti (Yield).
+    Vrací jak empirickou výtěžnost (z hrubých dat), tak teoretickou pro každé zvolené rozdělení.
+    """
+    # 1. Extrakce a očištění dat
+    data = df[column_name].dropna().values
+    celkem_behu = len(data)
+    
+    if celkem_behu == 0:
+        raise ValueError(f"Sloupec '{column_name}' je prázdný.")
 
-        # 2. Základní momenty
-        mu_standard = np.mean(data)
-        sigma_standard = np.std(data, ddof=1)
-        
-        # 3. Nastavení univerzální osy X
-        x_min, x_max = np.min(data), np.max(data)
-        rozptyl = x_max - x_min
-        x_curve = np.linspace(x_min - 0.1*rozptyl, x_max + 0.1*rozptyl, 200)
-        
-        curve_df = pd.DataFrame({"x": x_curve})
-        
-        # ==========================================
-        # A) EMPIRICKÝ YIELD (Přímo z hrubých dat)
-        # ==========================================
-        passed_empirical = celkem_behu
-        if lsl is not None or usl is not None:
-            valid_mask = np.ones(celkem_behu, dtype=bool)
-            if lsl is not None:
-                valid_mask &= (data >= lsl)
-            if usl is not None:
-                valid_mask &= (data <= usl)
-            passed_empirical = np.sum(valid_mask)
-        
-        yield_empirical_pct = (passed_empirical / celkem_behu) * 100.0
+    # 2. Základní momenty
+    mu_standard = np.mean(data)
+    sigma_standard = np.std(data, ddof=1)
+    
+    # 3. Nastavení univerzální osy X
+    x_min, x_max = np.min(data), np.max(data)
+    rozptyl = x_max - x_min
+    x_curve = np.linspace(x_min - 0.1*rozptyl, x_max + 0.1*rozptyl, 200)
+    
+    curve_df = pd.DataFrame({"x": x_curve})
+    
+    # ==========================================
+    # A) EMPIRICKÝ YIELD (Přímo z hrubých dat)
+    # ==========================================
+    passed_empirical = celkem_behu
+    if lsl is not None or usl is not None:
+        valid_mask = np.ones(celkem_behu, dtype=bool)
+        if lsl is not None:
+            valid_mask &= (data >= lsl)
+        if usl is not None:
+            valid_mask &= (data <= usl)
+        passed_empirical = np.sum(valid_mask)
+    
+    yield_empirical_pct = (passed_empirical / celkem_behu) * 100.0
 
-        # Inicializace výstupního slovníku
-        results = {
-            "runs": celkem_behu,
-            "mu_standard": mu_standard,
-            "sigma_standard": sigma_standard,
-            "empirical": {
-                "passed": passed_empirical,
-                "yield_pct": yield_empirical_pct
-            },
-            "fitted_models": {},
-            "curve_data": None
-        }
+    # Inicializace výstupního slovníku
+    results = {
+        "runs": celkem_behu,
+        "mu_standard": mu_standard,
+        "sigma_standard": sigma_standard,
+        "empirical": {
+            "passed": passed_empirical,
+            "yield_pct": yield_empirical_pct
+        },
+        "fitted_models": {},
+        "curve_data": None
+    }
 
-        # ==========================================
-        # B) KŘIVKA KDE (Vizuální reprezentace)
-        # ==========================================
-        if use_kde:
-            kde_estimator = st.gaussian_kde(data)
-            curve_df["pdf_kde"] = kde_estimator(x_curve)
+    # ==========================================
+    # B) KŘIVKA KDE (Vizuální reprezentace)
+    # ==========================================
+    if use_kde:
+        kde_estimator = st.gaussian_kde(data)
+        curve_df["pdf_kde"] = kde_estimator(x_curve)
+        
+    # ==========================================
+    # C) TEORETICKÝ YIELD PRO ZVOLENÁ ROZDĚLENÍ
+    # ==========================================
+    for dist_name in fit_dists:
+        try:
+            distribution = getattr(st, dist_name)
+            params = distribution.fit(data)
             
-        # ==========================================
-        # C) TEORETICKÝ YIELD PRO ZVOLENÁ ROZDĚLENÍ
-        # ==========================================
-        for dist_name in fit_dists:
-            try:
-                distribution = getattr(st, dist_name)
-                params = distribution.fit(data)
-                
-                # 1. Křivka pro zobrazení
-                curve_df[f"pdf_{dist_name}"] = distribution.pdf(x_curve, *params)
-                
-                # 2. Výpočet plochy pod křivkou pomocí CDF
-                theoretical_yield = 1.0
-                if lsl is not None or usl is not None:
-                    prob_upper = distribution.cdf(usl, *params) if usl is not None else 1.0
-                    prob_lower = distribution.cdf(lsl, *params) if lsl is not None else 0.0
-                    theoretical_yield = prob_upper - prob_lower
-                
-                # Uložení výsledků pro toto konkrétní rozdělení
-                results["fitted_models"][dist_name] = {
-                    "params": params, # Např. mu a sigma pro normální rozdělení
-                    "yield_pct": theoretical_yield * 100.0
-                }
-                
-            except AttributeError:
-                print(f"⚠️ SciPy rozdělení '{dist_name}' neexistuje.")
-            except Exception as e:
-                print(f"⚠️ Nelze analyzovat rozdělení '{dist_name}': {e}")
+            # 1. Křivka pro zobrazení
+            curve_df[f"pdf_{dist_name}"] = distribution.pdf(x_curve, *params)
+            
+            # 2. Výpočet plochy pod křivkou pomocí CDF
+            theoretical_yield = 1.0
+            if lsl is not None or usl is not None:
+                prob_upper = distribution.cdf(usl, *params) if usl is not None else 1.0
+                prob_lower = distribution.cdf(lsl, *params) if lsl is not None else 0.0
+                theoretical_yield = prob_upper - prob_lower
+            
+            # Uložení výsledků pro toto konkrétní rozdělení
+            results["fitted_models"][dist_name] = {
+                "params": params, # Např. mu a sigma pro normální rozdělení
+                "yield_pct": theoretical_yield * 100.0
+            }
+            
+        except AttributeError:
+            print(f"⚠️ SciPy rozdělení '{dist_name}' neexistuje.")
+        except Exception as e:
+            print(f"⚠️ Nelze analyzovat rozdělení '{dist_name}': {e}")
 
-        results["curve_data"] = curve_df
-        return results
+    results["curve_data"] = curve_df
+    return results

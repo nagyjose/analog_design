@@ -1,4 +1,4 @@
-from eda_engine import WorkspaceManager
+from eda_framework.eda_engine import WorkspaceManager
 
 # Inicializujeme workspace v aktuální složce pro projekt "Moje_OTA"
 ws = WorkspaceManager(project_root="./Moje_OTA")

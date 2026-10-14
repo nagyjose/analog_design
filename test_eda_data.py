@@ -1,5 +1,5 @@
-from eda_engine import WorkspaceManager, NgspiceRunner
-from eda_data import NgspiceParser, SimulationDataSet
+from eda_framework.eda_engine import WorkspaceManager, NgspiceRunner
+from eda_framework.eda_data import NgspiceParser, SimulationDataSet
 
 # 1. PŘÍPRAVA PROSTŘEDÍ
 ws = WorkspaceManager(project_root="..")

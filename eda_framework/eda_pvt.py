@@ -16,11 +16,11 @@ class PVTBuilder:
         self.default_state = {
             "{VDD}": self.vdd_nom,
             "{TEMP}": self.temp_nom,
-            "{C_MOS_LV}": "tt",
-            "{C_MOS_HV}": "tt",
-            "{C_HBT}": "typ",
-            "{C_RES}": "typ",
-            "{C_CAP}": "typ"
+            "{C_MOS_LV}": "mos_tt",
+            "{C_MOS_HV}": "mos_tt",
+            "{C_HBT}": "hbt_typ",
+            "{C_RES}": "res_typ",
+            "{C_CAP}": "cap_typ"
         }
 
     def _build(self, **overrides) -> Dict[str, Any]:
@@ -109,23 +109,23 @@ class PVTBuilder:
         vdds = vdds or [self.vdd_min, self.vdd_nom, self.vdd_max]
         return self._apply({"{VDD}": vdds}, kwargs)
 
-    def sweep_mos_lv(self, corners=["tt", "ss", "ff", "sf", "fs"], **kwargs):
+    def sweep_mos_lv(self, corners=["mos_tt", "mos_ss", "mos_ff", "mos_sf", "mos_fs"], **kwargs):
         """Sweepuje všechny kouty pro nízkonapěťové (core) MOS tranzistory."""
         return self._apply({"{C_MOS_LV}": corners}, kwargs)
 
-    def sweep_mos_hv(self, corners=["tt", "ss", "ff"], **kwargs):
+    def sweep_mos_hv(self, corners=["mos_tt", "mos_ss", "mos_ff"], **kwargs):
         """Sweepuje kouty pro tlustookrajové (I/O) MOS tranzistory."""
         return self._apply({"{C_MOS_HV}": corners}, kwargs)
 
-    def sweep_bipolar(self, corners=["typ", "min", "max"], **kwargs):
+    def sweep_bipolar(self, corners=["hbt_typ", "hbt_min", "hbt_max"], **kwargs):
         """Sweepuje heteropřechodové bipoláry (SiGe HBT)."""
         return self._apply({"{C_HBT}": corners}, kwargs)
 
-    def sweep_res(self, corners=["typ", "min", "max"], **kwargs):
+    def sweep_res(self, corners=["res_typ", "res_min", "res_max"], **kwargs):
         """Sweepuje odděleně pouze rezistory."""
         return self._apply({"{C_RES}": corners}, kwargs)
 
-    def sweep_cap(self, corners=["typ", "min", "max"], **kwargs):
+    def sweep_cap(self, corners=["cap_typ", "cap_min", "cap_max"], **kwargs):
         """Sweepuje odděleně pouze kapacity."""
         return self._apply({"{C_CAP}": corners}, kwargs)
 
@@ -141,28 +141,28 @@ class PVTBuilder:
 
     def wc_digital_speed(self, **kwargs):
         """Nejhorší rychlost logiky. Zima nebo horko (zvoleno 125), pomalé tranzistory, podpětí."""
-        base = {"{C_MOS_LV}": "ss", "{C_MOS_HV}": "ss", "{TEMP}": 125, "{VDD}": self.vdd_min}
+        base = {"{C_MOS_LV}": "mos_ss", "{C_MOS_HV}": "mos_ss", "{TEMP}": 125, "{VDD}": self.vdd_min}
         return self._apply(base, kwargs)
 
     def wc_rc_delay(self, **kwargs):
         """Maximalizace časové konstanty tau = R*C. Zásadní pro analogové filtry."""
-        base = {"{C_RES}": "max", "{C_CAP}": "max"}
+        base = {"{C_RES}": "res_max", "{C_CAP}": "cap_max"}
         return self._apply(base, kwargs)
 
     def wc_power_leakage(self, **kwargs):
         """Největší únikový (statický) proud. Rychlé (low Vth) tranzistory, horko, přepětí."""
-        base = {"{C_MOS_LV}": "ff", "{C_MOS_HV}": "ff", "{C_RES}": "min", "{TEMP}": 125, "{VDD}": self.vdd_max}
+        base = {"{C_MOS_LV}": "mos_ff", "{C_MOS_HV}": "mos_ff", "{C_RES}": "res_min", "{TEMP}": 125, "{VDD}": self.vdd_max}
         return self._apply(base, kwargs)
 
     def wc_analog_gain(self, **kwargs):
         """Minimální zisk analogových zesilovačů (gm/gds degradace)."""
         # Tranzistory s krátkým kanálem při vysoké teplotě a nízkém napájení trpí nejvíce.
-        base = {"{C_MOS_LV}": "fs", "{TEMP}": 125, "{VDD}": self.vdd_min}
+        base = {"{C_MOS_LV}": "mos_fs", "{TEMP}": 125, "{VDD}": self.vdd_min}
         return self._apply(base, kwargs)
 
     def wc_noise_rf(self, **kwargs):
         """Maximalizace tepelného a 1/f šumu. Pomalé aktivní prvky a velké odpory."""
-        base = {"{C_MOS_LV}": "ss", "{C_HBT}": "min", "{C_RES}": "max", "{TEMP}": 125}
+        base = {"{C_MOS_LV}": "mos_ss", "{C_HBT}": "hbt_min", "{C_RES}": "res_max", "{TEMP}": 125}
         return self._apply(base, kwargs)
 
 
@@ -173,7 +173,7 @@ class PVTBuilder:
     def matrix_standard_digital(self, **kwargs):
         """Klasických 27 rohů (3 VDD x 3 TEMP x 3 MOS). Ostatní typické."""
         base = {
-            "{C_MOS_LV}": ["tt", "ss", "ff"], 
+            "{C_MOS_LV}": ["mos_tt", "mos_ss", "mos_ff"], 
             "{TEMP}": [-40, 25, 125], 
             "{VDD}": [self.vdd_min, self.vdd_nom, self.vdd_max]
         }
@@ -182,7 +182,7 @@ class PVTBuilder:
     def matrix_full_digital(self, **kwargs):
         """Plná matice logiky pokrývající i křížové rohy (45 běhů)."""
         base = {
-            "{C_MOS_LV}": ["tt", "ss", "ff", "sf", "fs"], 
+            "{C_MOS_LV}": ["mos_tt", "mos_ss", "mos_ff", "mos_sf", "mos_fs"], 
             "{TEMP}": [-40, 25, 125], 
             "{VDD}": [self.vdd_min, self.vdd_nom, self.vdd_max]
         }
@@ -195,8 +195,8 @@ class PVTBuilder:
         Pokud by se přidal CAP, bylo by to 243 běhů. Lze to ale snadno upravit.
         """
         base = {
-            "{C_MOS_LV}": ["tt", "ss", "ff"],
-            "{C_RES}": ["typ", "min", "max"],
+            "{C_MOS_LV}": ["mos_tt", "mos_ss", "mos_ff"],
+            "{C_RES}": ["res_typ", "res_min", "res_max"],
             "{TEMP}": [-40, 25, 125], 
             "{VDD}": [self.vdd_min, self.vdd_nom, self.vdd_max]
         }
@@ -209,9 +209,9 @@ class PVTBuilder:
         aby to nebylo 243 běhů - v případě potřeby napětí přidáme do pole).
         """
         base = {
-            "{C_MOS_LV}": ["tt", "ss", "ff"],
-            "{C_HBT}": ["typ", "min", "max"],
-            "{C_RES}": ["typ", "min", "max"],
+            "{C_MOS_LV}": ["mos_tt", "mos_ss", "mos_ff"],
+            "{C_HBT}": ["hbt_typ", "hbt_min", "hbt_max"],
+            "{C_RES}": ["res_typ", "res_min", "res_max"],
             "{TEMP}": [-40, 25, 125]
         }
         return self._apply(base, kwargs)
@@ -222,9 +222,9 @@ class PVTBuilder:
         MOS_LV (3) × HBT (3) × RES (3) × TEMP (3) × VDD (3) = 243 běhů.
         """
         base = {
-            "{C_MOS_LV}": ["tt", "ss", "ff"],
-            "{C_HBT}": ["typ", "min", "max"],
-            "{C_RES}": ["typ", "min", "max"],
+            "{C_MOS_LV}": ["mos_tt", "mos_ss", "mos_ff"],
+            "{C_HBT}": ["hbt_typ", "hbt_min", "hbt_max"],
+            "{C_RES}": ["res_typ", "res_min", "res_max"],
             "{TEMP}": [-40, 25, 125],
             "{VDD}": [self.vdd_min, self.vdd_nom, self.vdd_max]
         }

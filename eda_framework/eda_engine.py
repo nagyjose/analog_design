@@ -4,9 +4,36 @@ import uuid
 import subprocess
 import concurrent.futures
 import random
+import shutil
 from dataclasses import dataclass
 from typing import Tuple, Optional, List, Dict, Any, Union
 from pathlib import Path
+
+class WorkspaceManager:
+    """Správa adresářové struktury projektu a izolovaných pískovišť (sandboxů)."""
+    def __init__(self, project_root: str = ".."):
+        self.root = Path(project_root).resolve()
+        self.dirs = {
+            "schematics": self.root / "schematics",
+            "netlists": self.root / "netlists",
+            "simulations": self.root / "simulations",
+            "work": self.root / "work",
+            "reports": self.root / "reports"
+        }
+        for d in self.dirs.values():
+            d.mkdir(parents=True, exist_ok=True)
+
+    def clear_work_directory(self):
+        """Vyčistí dočasnou složku work/ před novým během simulací."""
+        if self.dirs["work"].exists():
+            shutil.rmtree(self.dirs["work"])
+        self.dirs["work"].mkdir(parents=True, exist_ok=True)
+
+    def create_sandbox(self, run_id: str) -> Path:
+        """Vytvoří unikátní podsložku pro jeden paralelní běh Ngspice."""
+        sandbox = self.dirs["work"] / run_id
+        sandbox.mkdir(parents=True, exist_ok=True)
+        return sandbox
 
 class BaseAnalysis:
     """Základní třída pro všechny typy Ngspice simulací."""

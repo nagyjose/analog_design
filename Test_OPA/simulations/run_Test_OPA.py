@@ -1,4 +1,4 @@
-from eda_engine import WorkspaceManager, NgspiceRunner
+from eda_framework.eda_engine import WorkspaceManager, NgspiceRunner
 
 # 1. Inicializace projektu (ukazujeme do kořenové složky projektu)
 ws = WorkspaceManager(project_root="..")

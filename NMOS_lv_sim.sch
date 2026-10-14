@@ -65,3 +65,4 @@ value="
 .param NG_n=1
 .param TEMP=25
 "}
+C {sg13g2_pr/annotate_fet_params.sym} -180 -230 0 0 {name=annot1 ref=M1}
