@@ -1,0 +1,2 @@
+# Přesměrování na hlavní xschemrc projektu
+source "[file dirname [file normalize [info script]]]/../xschemrc"

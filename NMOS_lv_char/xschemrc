@@ -1,3 +1,16 @@
-# Lokální konfigurace Xschem pro projekt NMOS_lv_char
-# Vynucení ukládání netlistů do složky netlists/
-set netlist_dir $env(PWD)/netlists
+# Lokální konfigurace Xschem pro projekt
+set PROJ_DIR [file dirname [file normalize [info script]]]
+set WORKSPACE_RC [file normalize "${PROJ_DIR}/../xschemrc"]
+
+# 1. Načtení globální IHP PDK konfigurace
+if {[file exists $WORKSPACE_RC]} {
+    source $WORKSPACE_RC
+} elseif {[info exists env(PDK_ROOT)]} {
+    source "$env(PDK_ROOT)/ihp-sg13g2/libs.tech/xschem/xschemrc"
+}
+
+# 2. Vynucení ukládání netlistů vždy do složky netlists/ tohoto projektu
+set netlist_dir "${PROJ_DIR}/netlists"
+
+# 3. Přidání složky schematics/ projektu do knihoven (pro hierarchické bloky)
+append XSCHEM_LIBRARY_PATH ":${PROJ_DIR}/schematics"

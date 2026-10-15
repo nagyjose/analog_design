@@ -53,6 +53,8 @@ class SignalAnalyzer:
         Převede číslo do inženýrského formátu (např. 1.2e-6 -> 1.2 µ).
         Využívá vaši původní otestovanou logiku.
         """
+        if hodnota is None or np.isnan(hodnota) or np.isinf(hodnota):
+            return "N/A"
         if hodnota == 0:
             return f"0 {jednotka}".strip()
         
@@ -128,9 +130,9 @@ class SignalAnalyzer:
 
         # --- 2. NALEZENÍ SPRÁVNÉHO INDEXU PODLE REŽIMU ---
         if rezim == "max":
-            idx = np.argmax(y)
+            idx = np.nanargmax(y)
         elif rezim == "min":
-            idx = np.argmin(y)
+            idx = np.nanargmin(y)
         elif rezim == "x":
             if cil_x is None:
                 raise ValueError("Pro rezim='x' musíte zadat hodnotu 'cil_x'.")
@@ -154,12 +156,12 @@ class SignalAnalyzer:
             )
             
             if styl == "vline":
-                self.fig.add_vline(x=real_x, line_dash="dash", line_color="gray", opacity=0.7, row=row, col=col)
+                self.fig.add_vline(exclude_empty_subplots=False, x=real_x, line_dash="dash", line_color="gray", opacity=0.7, row=row, col=col)
             elif styl == "hline":
-                self.fig.add_hline(y=real_y, line_dash="dash", line_color="gray", opacity=0.7, row=row, col=col)
+                self.fig.add_hline(exclude_empty_subplots=False, y=real_y, line_dash="dash", line_color="gray", opacity=0.7, row=row, col=col)
             elif styl == "crosshair":
-                self.fig.add_vline(x=real_x, line_dash="dot", line_color="gray", opacity=0.6, row=row, col=col)
-                self.fig.add_hline(y=real_y, line_dash="dot", line_color="gray", opacity=0.6, row=row, col=col)
+                self.fig.add_vline(exclude_empty_subplots=False, x=real_x, line_dash="dot", line_color="gray", opacity=0.6, row=row, col=col)
+                self.fig.add_hline(exclude_empty_subplots=False, y=real_y, line_dash="dot", line_color="gray", opacity=0.6, row=row, col=col)
             
             self.fig.add_trace(trace_tecka, row=row, col=col)
 
@@ -244,13 +246,13 @@ class SignalAnalyzer:
             )
             
             if styl == "vline":
-                self.fig.add_vline(x=real_xa, line_dash="dash", line_color="grey", opacity=0.7, row=row, col=col)
-                self.fig.add_vline(x=real_xb, line_dash="dash", line_color="grey", opacity=0.7, row=row, col=col)
+                self.fig.add_vline(exclude_empty_subplots=False, x=real_xa, line_dash="dash", line_color="grey", opacity=0.7, row=row, col=col)
+                self.fig.add_vline(exclude_empty_subplots=False, x=real_xb, line_dash="dash", line_color="grey", opacity=0.7, row=row, col=col)
                 self.fig.add_trace(trace_tecky, row=row, col=col)
 
             elif styl == "hline":
-                self.fig.add_hline(y=real_ya, line_dash="dash", line_color="grey", opacity=0.7, row=row, col=col)
-                self.fig.add_hline(y=real_yb, line_dash="dash", line_color="grey", opacity=0.7, row=row, col=col)
+                self.fig.add_hline(exclude_empty_subplots=False, y=real_ya, line_dash="dash", line_color="grey", opacity=0.7, row=row, col=col)
+                self.fig.add_hline(exclude_empty_subplots=False, y=real_yb, line_dash="dash", line_color="grey", opacity=0.7, row=row, col=col)
                 self.fig.add_trace(trace_tecky, row=row, col=col)
 
             elif styl == "point":
@@ -269,11 +271,11 @@ class SignalAnalyzer:
 
             elif styl == "crosshair": # TADY JE NOVÝ PROFESIONÁLNÍ STYL[cite: 3]
                 # Vertikální čáry
-                self.fig.add_vline(x=real_xa, line_dash="dot", line_color="gray", opacity=0.6, row=row, col=col)
-                self.fig.add_vline(x=real_xb, line_dash="dot", line_color="gray", opacity=0.6, row=row, col=col)
+                self.fig.add_vline(exclude_empty_subplots=False, x=real_xa, line_dash="dot", line_color="gray", opacity=0.6, row=row, col=col)
+                self.fig.add_vline(exclude_empty_subplots=False, x=real_xb, line_dash="dot", line_color="gray", opacity=0.6, row=row, col=col)
                 # Horizontální čáry
-                self.fig.add_hline(y=real_ya, line_dash="dot", line_color="gray", opacity=0.6, row=row, col=col)
-                self.fig.add_hline(y=real_yb, line_dash="dot", line_color="gray", opacity=0.6, row=row, col=col)
+                self.fig.add_hline(exclude_empty_subplots=False, y=real_ya, line_dash="dot", line_color="gray", opacity=0.6, row=row, col=col)
+                self.fig.add_hline(exclude_empty_subplots=False, y=real_yb, line_dash="dot", line_color="gray", opacity=0.6, row=row, col=col)
                 # Zvýraznění průsečíku (bodu na křivce)[cite: 3]
                 self.fig.add_trace(trace_tecky, row=row, col=col)
         
@@ -372,7 +374,7 @@ class SignalAnalyzer:
         # --- 3. VYKRESLENÍ GRAFIKY (Stínovaná oblast a průměr) ---
         if draw_markers and self.fig is not None:
             # Vykreslení stínovaného obdélníku přes analyzovanou oblast
-            self.fig.add_vrect(
+            self.fig.add_vrect(exclude_empty_subplots=False, 
                 x0=real_xa, x1=real_xb, 
                 fillcolor="gray", opacity=0.15, 
                 layer="below", line_width=1, line_dash="dash", line_color="gray",
@@ -481,13 +483,13 @@ class SignalAnalyzer:
             if f_3db is not None:
                 # Křížový marker pro -3dB
                 self.fig.add_trace(go.Scatter(x=[f_3db], y=[target_3db], mode='markers', marker=dict(symbol='x', size=8, color='yellow'), showlegend=False), row=row_mag, col=col_mag)
-                self.fig.add_hline(y=target_3db, line_dash="dot", line_color="gray", opacity=0.5, row=row_mag, col=col_mag)
+                self.fig.add_hline(exclude_empty_subplots=False, y=target_3db, line_dash="dot", line_color="gray", opacity=0.5, row=row_mag, col=col_mag)
                 
             # Vykreslení f_T
             if f_T is not None:
                 # Vertikální čára protínající OBA grafy (Amplitudu i Fázi) na frekvenci f_T
-                self.fig.add_vline(x=f_T, line_dash="dash", line_color="red", opacity=0.7, row=row_mag, col=col_mag)
-                self.fig.add_vline(x=f_T, line_dash="dash", line_color="red", opacity=0.7, row=row_phase, col=col_phase)
+                self.fig.add_vline(exclude_empty_subplots=False, x=f_T, line_dash="dash", line_color="red", opacity=0.7, row=row_mag, col=col_mag)
+                self.fig.add_vline(exclude_empty_subplots=False, x=f_T, line_dash="dash", line_color="red", opacity=0.7, row=row_phase, col=col_phase)
 
         # --- 4. INFORMAČNÍ BOXY (S využitím sdíleného formátování) ---
         if draw_text and self.fig is not None:
@@ -625,9 +627,9 @@ class SignalAnalyzer:
         # --- 6. VYKRESLENÍ GRAFIKY (Němé značky) ---
         if draw_markers and self.fig is not None:
             # Ustálená hodnota a hrany (10%, 90%)
-            self.fig.add_hline(y=y_final, line_dash="dash", line_color="green", opacity=0.6, row=row, col=col)
-            self.fig.add_hline(y=y_90, line_dash="dot", line_color="gray", opacity=0.4, row=row, col=col)
-            self.fig.add_hline(y=y_10, line_dash="dot", line_color="gray", opacity=0.4, row=row, col=col)
+            self.fig.add_hline(exclude_empty_subplots=False, y=y_final, line_dash="dash", line_color="green", opacity=0.6, row=row, col=col)
+            self.fig.add_hline(exclude_empty_subplots=False, y=y_90, line_dash="dot", line_color="gray", opacity=0.4, row=row, col=col)
+            self.fig.add_hline(exclude_empty_subplots=False, y=y_10, line_dash="dot", line_color="gray", opacity=0.4, row=row, col=col)
 
             # Zvýraznění hrany (10 - 90 %)
             self.fig.add_trace(go.Scatter(
@@ -772,8 +774,8 @@ class SignalAnalyzer:
         # --- 4. VYKRESLENÍ GRAFIKY (Němé značky a kóty) ---
         if draw_markers and self.fig is not None:
             # Vykreslení horizontálních čar pro prahové hodnoty (50 % úrovně)
-            self.fig.add_hline(y=thr_in_val, line_dash="dot", line_color="magenta", opacity=0.4, row=row, col=col)
-            self.fig.add_hline(y=thr_out_val, line_dash="dot", line_color="magenta", opacity=0.4, row=row, col=col)
+            self.fig.add_hline(exclude_empty_subplots=False, y=thr_in_val, line_dash="dot", line_color="magenta", opacity=0.4, row=row, col=col)
+            self.fig.add_hline(exclude_empty_subplots=False, y=thr_out_val, line_dash="dot", line_color="magenta", opacity=0.4, row=row, col=col)
             
             # Zvýraznění konkrétních bodů průchodu
             self.fig.add_trace(go.Scatter(
@@ -887,7 +889,7 @@ class SignalAnalyzer:
             t_fall = t[f_idx[0]] if len(f_idx) > 0 else t_end
             
             # Horizontální osa prahu (Threshold)
-            self.fig.add_hline(y=thr_val, line_dash="dot", line_color="cyan", opacity=0.5, row=row, col=col)
+            self.fig.add_hline(exclude_empty_subplots=False, y=thr_val, line_dash="dot", line_color="cyan", opacity=0.5, row=row, col=col)
             
             # Značky na začátku a konci periody
             self.fig.add_trace(go.Scatter(
@@ -1160,8 +1162,8 @@ class SignalAnalyzer:
                 ), row=row, col=col)
                 
                 # Svislé ohraničující čáry integračního okna[cite: 1]
-                self.fig.add_vline(x=int_bw[0], line_dash="dash", line_color="yellow", opacity=0.5, row=row, col=col)
-                self.fig.add_vline(x=int_bw[1], line_dash="dash", line_color="yellow", opacity=0.5, row=row, col=col)
+                self.fig.add_vline(exclude_empty_subplots=False, x=int_bw[0], line_dash="dash", line_color="yellow", opacity=0.5, row=row, col=col)
+                self.fig.add_vline(exclude_empty_subplots=False, x=int_bw[1], line_dash="dash", line_color="yellow", opacity=0.5, row=row, col=col)
 
         # --- 5. INFORMAČNÍ BOXY (S využitím sdílených stylů) ---
         if draw_text and self.fig is not None:
@@ -1284,8 +1286,8 @@ class SignalAnalyzer:
             ), row=row, col=col)
             
             # Zaměřovací kříž (Crosshair)
-            self.fig.add_vline(x=pin_1db, line_dash="dash", line_color="red", opacity=0.5, row=row, col=col)
-            self.fig.add_hline(y=pout_1db, line_dash="dash", line_color="red", opacity=0.5, row=row, col=col)
+            self.fig.add_vline(exclude_empty_subplots=False, x=pin_1db, line_dash="dash", line_color="red", opacity=0.5, row=row, col=col)
+            self.fig.add_hline(exclude_empty_subplots=False, y=pout_1db, line_dash="dash", line_color="red", opacity=0.5, row=row, col=col)
 
         # --- 6. INFORMAČNÍ BOX ---
         if draw_text and self.fig is not None:
@@ -1393,8 +1395,8 @@ class SignalAnalyzer:
             ), row=row, col=col)
             
             # Zaměřovací osy přesně na střed křížení
-            self.fig.add_vline(x=iip3, line_dash="dash", line_color="orange", opacity=0.5, row=row, col=col)
-            self.fig.add_hline(y=oip3, line_dash="dash", line_color="orange", opacity=0.5, row=row, col=col)
+            self.fig.add_vline(exclude_empty_subplots=False, x=iip3, line_dash="dash", line_color="orange", opacity=0.5, row=row, col=col)
+            self.fig.add_hline(exclude_empty_subplots=False, y=oip3, line_dash="dash", line_color="orange", opacity=0.5, row=row, col=col)
 
         # --- 6. INFORMAČNÍ BOX ---
         if draw_text and self.fig is not None:
@@ -1507,19 +1509,19 @@ class SignalAnalyzer:
         # --- 3. VYKRESLENÍ GRAFIKY (Stínování a ohraničení zón) ---
         if draw_markers and self.fig is not None:
             # Horizontální limitní čára[cite: 1]
-            self.fig.add_hline(y=threshold, line_dash="dash", line_color=barva, opacity=0.8, row=row, col=col)
+            self.fig.add_hline(exclude_empty_subplots=False, y=threshold, line_dash="dash", line_color=barva, opacity=0.8, row=row, col=col)
             
             for start, end in intervals:
                 # Vykreslení stínovaného obdélníku přes každé vyhovující pásmo[cite: 1]
-                self.fig.add_vrect(
+                self.fig.add_vrect(exclude_empty_subplots=False, 
                     x0=start, x1=end, 
                     fillcolor=barva, opacity=0.15, 
                     layer="below", line_width=0,
                     row=row, col=col
                 )
                 # Svislé čáry ohraničující zónu[cite: 1]
-                self.fig.add_vline(x=start, line_dash="dot", line_color=barva, opacity=0.6, row=row, col=col)
-                self.fig.add_vline(x=end, line_dash="dot", line_color=barva, opacity=0.6, row=row, col=col)
+                self.fig.add_vline(exclude_empty_subplots=False, x=start, line_dash="dot", line_color=barva, opacity=0.6, row=row, col=col)
+                self.fig.add_vline(exclude_empty_subplots=False, x=end, line_dash="dot", line_color=barva, opacity=0.6, row=row, col=col)
 
         # --- 4. INFORMAČNÍ BOX (Pro nejširší pásmo) ---
         if draw_text and self.fig is not None and nejdelsi_interval:

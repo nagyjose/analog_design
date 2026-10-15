@@ -1,6 +1,6 @@
 ** sch_path: /foss/designs/ihp_designs/NMOS_lv_char/schematics/NMOS_lv_char.sch
 **.subckt NMOS_lv_char
-*  M1 -  sg13_lv_nmos  IS MISSING !!!!
+XM1 VD VG VS VB sg13_lv_nmos w={W_n} l={L_n} ng={NG_n} m={M_n} mm_ok=1
 V1 VG 0 {Vg}
 V2 VD 0 {Vd}
 V3 VS 0 {Vs}

@@ -1,13 +1,25 @@
+import sys
+from pathlib import Path
 import numpy as np
+
+# 1. Zpřístupnění balíčku eda_framework (přidáme /foss/designs/ihp_designs do sys.path)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+WORKSPACE_ROOT = PROJECT_ROOT.parent
+if str(WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT))
+    sys.path.insert(0, str(WORKSPACE_ROOT / "eda_framework"))
+
+# 2. Nyní již Python balíček eda_framework bezpečně vidí
 from eda_framework.eda_engine import WorkspaceManager, NgspiceRunner, Testbench, DCAnalysis
 from eda_framework.eda_data import SimulationDataSet
 from eda_framework.eda_plot import EDAPlotter
 from eda_framework.eda_analysis import SignalAnalyzer
+from eda_framework.eda_pvt import PVTBuilder
 
 # =====================================================================
 # 1. INICIALIZACE WORKSPACE A TESTBENCHE
 # =====================================================================
-ws = WorkspaceManager(project_root="..")
+ws = WorkspaceManager(project_root=PROJECT_ROOT)
 ws.clear_work_directory()
 engine = NgspiceRunner(ws)
 

@@ -5,6 +5,8 @@ import subprocess
 import concurrent.futures
 import random
 import shutil
+import os
+import re
 from dataclasses import dataclass
 from typing import Tuple, Optional, List, Dict, Any, Union
 from pathlib import Path
@@ -43,13 +45,15 @@ class BaseAnalysis:
         raise NotImplementedError()
 
     def get_control_block(self, raw_filename: str) -> str:
-        """Standardní obálka pro izolovaný běh (Single Run)."""
-        return f"""
-                .control
-                {self.get_core_command()}
-                write {raw_filename} all
-                .endc
-                """
+        """Standardní obálka pro izolovaný běh (bez odsazení a s ASCII výstupem pro spyci)."""
+        return (
+            ".control\n"
+            "set filetype=ascii\n"
+            f"{self.get_core_command()}\n"
+            f"write {raw_filename} all\n"
+            "quit\n"
+            ".endc\n"
+        )
 
 @dataclass
 class DCAnalysis(BaseAnalysis):
@@ -101,7 +105,7 @@ class CustomAnalysis(BaseAnalysis):
     control_script: str
 
     def get_core_command(self) -> str:
-        return self.core_commands
+        return self.control_script
 
 @dataclass
 class MCAnalysis(BaseAnalysis):
@@ -118,25 +122,21 @@ class MCAnalysis(BaseAnalysis):
     def get_control_block(self, raw_filename: str) -> str:
         core_cmd = self.base_analysis.get_core_command()
         
-        return f"""
-                .control
-                let mc_runs = {self.runs_per_chunk}
-                let run = 1
-                
-                * {{{{SEED}}}} bude automaticky nahrazeno enginem pro každý proces unikátně
-                set seed = {{{{SEED}}}}
-                
-                while run <= mc_runs
-                    reset
-                    * Vlastní analýza
-                    {core_cmd}
-                    let run = run + 1
-                end
-                
-                * Zápis všech vygenerovaných křivek (např. dc1, dc2... dc100) do jediného RAW
-                write {raw_filename} all
-                .endc
-                """
+        return (
+            ".control\n"
+            "set filetype=ascii\n"
+            f"let mc_runs = {self.runs_per_chunk}\n"
+            "let run = 1\n"
+            "set seed = {{SEED}}\n"
+            "while run <= mc_runs\n"
+            "    reset\n"
+            f"    {core_cmd}\n"
+            "    let run = run + 1\n"
+            "end\n"
+            f"write {raw_filename} all\n"
+            "quit\n"
+            ".endc\n"
+        )
 
 
 class ParameterExpander:
@@ -204,6 +204,32 @@ class NgspiceRunner:
         # Objekt WorkspaceManager z vaší původní implementace
         self.ws = workspace
 
+    def _prepare_spiceinit(self, sandbox: Path):
+        """
+        Vytvoří v pískovišti .spiceinit s absolutními cestami ke všem IHP modelům (.lib)
+        a automaticky připojí všechny zkompilované Verilog-A (.osdi) modely (psp103va, r3_cmc...).
+        """
+        spiceinit_target = sandbox / ".spiceinit"
+        
+        pdk_root = Path(os.environ.get("PDK_ROOT", "/foss/pdks"))
+        pdk = os.environ.get("PDK", "ihp-sg13g2")
+        ngspice_tech_dir = pdk_root / pdk / "libs.tech" / "ngspice"
+        models_dir = ngspice_tech_dir / "models"
+        
+        lines = [
+            "set ngbehavior=hsa",
+            "set ng_nomodcheck",
+            f"set sourcepath = ( . {models_dir} )"
+        ]
+        
+        # Automatické vyhledání všech .osdi binárek v PDK (psp103_nqs.osdi, r3_cmc.osdi, mosvar.osdi...)
+        if ngspice_tech_dir.exists():
+            osdi_files = sorted(ngspice_tech_dir.rglob("*.osdi"))
+            for osdi_file in osdi_files:
+                lines.append(f"osdi {osdi_file.resolve()}")
+                
+        spiceinit_target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
     def _run_single_task(self, task_idx: int, params: Dict[str, Any], template_path: Path, control_block: str) -> Dict[str, Any]:
         """
         Izolovaná úloha, která poběží ve zcela nezávislém procesu OS.
@@ -218,18 +244,23 @@ class NgspiceRunner:
         log_output = sandbox / f"{run_id}.log"
         
         try:
-            # 2. Nahrazení parametrů "on-the-fly"
-            with open(template_path, "r", encoding="utf-8") as f:
-                netlist = f.read()
-                
+            # 1. Příprava .spiceinit se zachováním OSDI modelů
+            self._prepare_spiceinit(sandbox)
+
+            # 2. Načtení šablony a nahrazení parametrů
+            netlist = template_path.read_text(encoding="utf-8")
             for key, value in params.items():
                 netlist = netlist.replace(key, str(value))
                 
-            # 1. Vygenerování unikátního semínka (Ochrana proti duplicitě při multithreadingu)
+            # 3. Odstranění případného '.end' z konce Xschem netlistu, 
+            # protože blok .control MUSÍ být v SPICE souboru PŘED '.end'!
+            netlist_clean = re.sub(r'(?im)^\s*\.end\s*$', '', netlist).strip()
+                
+            # 4. Vygenerování unikátního semínka (Ochrana proti duplicitě při multithreadingu)
             # Zkombinujeme velký náhodný základ s indexem úlohy pro naprostou jistotu
             unique_seed = random.randint(1, 9999999) + task_idx
             
-            # 2. Bezpečné nahrazení tagů. Nahrazujeme .format() za .replace(), 
+            # 5. Bezpečné nahrazení tagů. Nahrazujeme .format() za .replace(), 
             # protože Ngspice skripty často obsahují složené závorky {} pro jiné účely.
             control_formatted = control_block.replace("{RAW_OUT}", raw_output.name)
             control_formatted = control_formatted.replace("{{SEED}}", str(unique_seed))
@@ -239,7 +270,7 @@ class NgspiceRunner:
                 f.write("\n")
                 f.write(control_formatted)
                 
-            # 3. Synchronní spuštění izolovaného Ngspice procesu (stdout teče do logu)
+            # 6. Synchronní spuštění izolovaného Ngspice procesu (stdout teče do logu)
             with open(log_output, "w") as log_file:
                 result = subprocess.run(
                     ["ngspice", "-b", run_spice.name], 
@@ -299,9 +330,16 @@ class NgspiceRunner:
         # zpět podle původního indexu, aby matice dat v dalším kroku seděla k zadání
         results.sort(key=lambda x: x["task_idx"])
         
-        fail_count = sum(1 for r in results if r["status"] != "OK")
-        if fail_count > 0:
-            print(f"[Engine] ⚠️ Dokončeno s chybami. Počet selhání: {fail_count}/{total_tasks}")
+        failed = [r for r in results if r["status"] != "OK"]
+        if failed:
+            print(f"[Engine] ⚠️ Dokončeno s chybami. Počet selhání: {len(failed)}/{total_tasks}")
+            # Vypíšeme diagnostiku prvního selhání přímo do terminálu
+            first_fail = failed[0]
+            print(f"  -> Diagnostika běhu #{first_fail['task_idx']} (Status: {first_fail['status']}):")
+            if first_fail["log_path"] and first_fail["log_path"].exists():
+                log_lines = first_fail["log_path"].read_text(encoding="utf-8", errors="ignore").splitlines()
+                tail = "\n     ".join(log_lines[-15:])
+                print(f"     Posledních 15 řádků z {first_fail['log_path'].name}:\n     {tail}")
         else:
             print(f"[Engine] ✅ Všech {total_tasks} simulací úspěšně dokončeno.")
             
@@ -337,12 +375,9 @@ class Testbench:
             elif isinstance(self.saved_params, dict) and isinstance(params, list):
                 # Stav: Slovník (základ) + Nové: Pole (např. PVT kouty)
                 # Vytvoříme pole, kde každý prvek obsahuje náš základ + specifika koutu
-                merged_list = []
-                for p_dict in params:
-                    merged = copy.deepcopy(self.saved_params)
-                    merged.update(p_dict)
-                    merged_list.append(merged)
-                self.saved_params = merged_list
+                self.saved_params = [
+                    {**copy.deepcopy(self.saved_params), **p_dict} for p_dict in params
+                ]
                 
             elif isinstance(self.saved_params, list) and isinstance(params, dict):
                 # Stav: Pole (PVT kouty) + Nové: Slovník (např. plošná změna VDD)

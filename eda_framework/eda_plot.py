@@ -190,12 +190,12 @@ class EDAPlotter:
                     
         # 4. SPECIFIKAČNÍ LIMITY (LSL / USL)
         if lsl is not None:
-            fig.add_vline(x=lsl, line_dash="dash", line_color="red", row=row, col=col)
+            fig.add_vline(exclude_empty_subplots=False, x=lsl, line_dash="dash", line_color="red", row=row, col=col)
             # Pomocný neviditelný scatter pro nápis, aby se nevytvářel problém s absolutními annotacemi napříč gridem
             fig.add_trace(go.Scatter(x=[lsl], y=[0], mode="text", text=["LSL"], textposition="top right", textfont=dict(color="red"), showlegend=False, hoverinfo='skip'), row=row, col=col, secondary_y=False)
             
         if usl is not None:
-            fig.add_vline(x=usl, line_dash="dash", line_color="red", row=row, col=col)
+            fig.add_vline(exclude_empty_subplots=False, x=usl, line_dash="dash", line_color="red", row=row, col=col)
             fig.add_trace(go.Scatter(x=[usl], y=[0], mode="text", text=["USL"], textposition="top left", textfont=dict(color="red"), showlegend=False, hoverinfo='skip'), row=row, col=col, secondary_y=False)
             
         # 5. INFORMAČNÍ BOX
